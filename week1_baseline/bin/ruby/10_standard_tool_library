@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+export BOUKENSHA_DIR="$(cd "$REPO_ROOT/.boukensha" && pwd)"
+
+cd "$SCRIPT_DIR/../../ruby/10_standard_tool_library"
+
+# This step has no examples/ — the gem's executable is the deliverable. Running
+# the repo copy exercises the local loader without a gem rebuild/reinstall.
+bundle exec ruby bin/boukensha

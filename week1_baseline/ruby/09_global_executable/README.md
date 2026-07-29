@@ -12,24 +12,53 @@ Package BOUKENSHA as a gem so the `boukensha` command works from anywhere on you
 ## Install
 
 ```bash
-cd 08_global_executable
+cd 09_global_executable
 gem build boukensha.gemspec
-gem install boukensha-0.1.0.gem
+gem install boukensha-0.9.0.gem
 ```
 
 After that, `boukensha` is on your `$PATH` and works from any directory.
 
-## Switching steps with BOUKENSHA_PATH
+## Configuration
 
-The loader resolves in this order:
+The loader resolves two independent settings:
+
+| Setting | What it selects | Default |
+|---------|-----------------|---------|
+| `BOUKENSHA_PATH` | which *step* lib to load | the lib bundled in this gem |
+| `BOUKENSHA_DIR` | config dir with `settings.yaml`, `.env`, `prompts/` | `~/.boukensha` |
+
+Each resolves in the same order:
 
 | Priority | Source | Example |
 |----------|--------|---------|
-| 1 | `BOUKENSHA_PATH` env var | `BOUKENSHA_PATH=~/Sites/boukensha/07_the_repl_loop boukensha` |
-| 2 | `~/.boukensharc` file | `echo ~/Sites/boukensha/07_the_repl_loop > ~/.boukensharc` |
-| 3 | Bundled default | just run `boukensha` |
+| 1 | environment variable | `BOUKENSHA_DIR=~/projects/mybot/.boukensha boukensha` |
+| 2 | `~/.boukensharc` file | `BOUKENSHA_DIR=~/projects/mybot/.boukensha` |
+| 3 | built-in default | just run `boukensha` |
 
 `BOUKENSHA_PATH` must point to a step folder that contains `lib/boukensha.rb`.
+
+### ~/.boukensharc
+
+A `key=value` file; blank lines and `#` comments are ignored:
+
+```bash
+# ~/.boukensharc
+BOUKENSHA_PATH=~/Sites/boukensha/08_the_repl_loop
+BOUKENSHA_DIR=~/projects/mybot/.boukensha
+```
+
+Set only what you need — omit `BOUKENSHA_PATH` to use the bundled lib. A file
+containing a single bare path is still read as `BOUKENSHA_PATH`, so older rc
+files keep working.
+
+If `BOUKENSHA_DIR` names a directory that doesn't exist, the loader stops with a
+clear error rather than falling back — an empty config otherwise surfaces much
+later as a confusing `tasks.player.model is required in settings.yaml`.
+
+> Note: the loader lives *inside the gem*, so changes to it only take effect
+> after `gem build` + `gem install`. Changes to the framework don't — point
+> `BOUKENSHA_PATH` at a step folder to iterate on those live.
 
 ## Running a specific step
 
@@ -48,6 +77,7 @@ BOUKENSHA_PATH=~/Sites/boukensha/06_the_run_dsl boukensha
 ```bash
 BOUKENSHA_DEBUG=1 boukensha
 # => [boukensha] loading from: /path/to/step
+# => [boukensha] config dir:   /path/to/.boukensha
 ```
 
 ## The key idea

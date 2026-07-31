@@ -1,3 +1,9 @@
+require_relative "backends/anthropic"
+require_relative "backends/gemini"
+require_relative "backends/ollama"
+require_relative "backends/ollama_cloud"
+require_relative "backends/openai"
+
 module Boukensha
   # Static model → capability table.
   #
@@ -5,12 +11,29 @@ module Boukensha
   # value the user sets. The agent looks it up from its configured model id; the
   # user never configures it in settings.yaml. Unknown models fall back to a
   # conservative default so an unrecognised id can't silently assume a huge window.
+  #
+  # The table is *derived* from every backend's own MODELS constant rather than
+  # hand-maintained. That matters because the lookup happens before any backend
+  # object exists (Boukensha.run sizes the Context first), so it can't delegate to
+  # backend.context_window — and a hand-copied table silently drifts, leaving
+  # non-Anthropic models on the 32k default and triggering constant, needless
+  # auto-compaction.
   module Models
-    TABLE = {
-      "claude-opus-4-8"   => { context_window: 200_000 },
-      "claude-sonnet-4-6" => { context_window: 200_000 },
-      "claude-haiku-4-5"  => { context_window: 200_000 },
-    }.freeze
+    BACKENDS = [
+      Backends::Anthropic,
+      Backends::OpenAI,
+      Backends::Gemini,
+      Backends::Ollama,
+      Backends::OllamaCloud
+    ].freeze
+
+    # Earlier backends win a duplicate model id — none exist today, and the
+    # ordering above makes the outcome deterministic if one ever does.
+    TABLE = BACKENDS.each_with_object({}) do |backend, table|
+      backend::MODELS.each do |id, spec|
+        table[id] ||= { context_window: spec[:context_window] }
+      end
+    end.freeze
 
     DEFAULT_CONTEXT_WINDOW = 32_000
 

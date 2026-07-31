@@ -58,7 +58,7 @@ module Boukensha
           handle_tool_calls(parsed[:content], response)
         else
           text = extract_text(parsed[:content])
-          @logger.response(text: text, usage: response["usage"], stop_reason: parsed[:stop_reason])
+          log_response(text: text, response: response, stop_reason: parsed[:stop_reason])
           @logger.turn_end(reason: "completed", iterations: @iteration, tokens: @context.turn_tokens)
           @context.add_message(:assistant, text)
           return text
@@ -111,7 +111,7 @@ module Boukensha
       text        = extract_text(parsed_wrap[:content])
       text        = fallback_message(reason) if text.strip.empty?
       record_usage(response)
-      @logger.response(text: text, usage: response["usage"], stop_reason: parsed_wrap[:stop_reason])
+      log_response(text: text, response: response, stop_reason: parsed_wrap[:stop_reason])
       @logger.turn_end(reason: reason, iterations: @iteration, tokens: @context.turn_tokens)
       @context.add_message(:assistant, text)
       text
@@ -154,7 +154,7 @@ module Boukensha
       # the placeholder below owns the turn's usage chip), then the placeholder.
       preamble = extract_text(content)
       @logger.plan(text: preamble) unless preamble.strip.empty?
-      @logger.response(text: "(tool use — #{tool_calls.size} call#{'s' if tool_calls.size != 1})", usage: response["usage"], stop_reason: "tool_use")
+      log_response(text: "(tool use — #{tool_calls.size} call#{'s' if tool_calls.size != 1})", response: response, stop_reason: "tool_use")
 
       @context.add_message(:assistant, content)
 
@@ -174,6 +174,39 @@ module Boukensha
 
         @context.add_message(:tool_result, result.to_s, tool_use_id: use_id)
       end
+    end
+
+    # Every model response goes through here so each `response` log event
+    # carries its execution metadata (provider, model, token counts, estimated
+    # cost). `stop_reason` comes from the *parsed* response, so it reads the
+    # same for every provider.
+    #
+    # task: is nil because Context carries no task reference — the task class is
+    # resolved once in Boukensha.run/.repl and only its output (system, model,
+    # provider) reaches the Agent. Logger#task_name handles nil, so cost and
+    # provider logging still work, just without a task label.
+    def log_response(text:, response:, stop_reason:)
+      @logger.response(
+        text: text,
+        usage: normalized_usage(response),
+        stop_reason: stop_reason,
+        task: nil,
+        backend: @builder.backend
+      )
+    end
+
+    # Providers report usage under different keys and at different depths.
+    # Logger#usage_tokens knows the key spellings; this only has to find the
+    # hash they live in.
+    def normalized_usage(response)
+      return response["usage"] if response["usage"]
+      return response["usageMetadata"] if response["usageMetadata"]
+
+      usage = {}
+      %w[prompt_eval_count eval_count].each do |key|
+        usage[key] = response[key] if response.key?(key)
+      end
+      usage.empty? ? nil : usage
     end
   end
 end

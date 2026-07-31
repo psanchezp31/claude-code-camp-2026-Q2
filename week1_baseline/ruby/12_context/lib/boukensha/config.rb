@@ -1,6 +1,7 @@
 require "yaml"
 require "dotenv"
 require "pathname"
+require_relative "tasks/player"
 
 module Boukensha
   class Config
@@ -9,13 +10,33 @@ module Boukensha
     #   2. ~/.boukensha  (default)
     DEFAULT_DIR = File.join(Dir.home, ".boukensha").freeze
 
-    attr_reader :dir, :settings, :system_prompt
+    # Default prompts shipped alongside this step. Used as the fallback when a
+    # task declares no prompt override, or declares one whose file is missing —
+    # without it the agent would silently run with no system prompt at all.
+    # (../.. from lib/boukensha is the step root, both in-tree and inside the
+    # installed gem — ../../.. would land outside it and never resolve.)
+    PROMPTS_DIR = File.expand_path("../../prompts", __dir__).freeze
+
+    attr_reader :dir, :settings
 
     def initialize
       @dir = resolve_dir
       load_env
-      @settings     = load_settings
-      @system_prompt = load_system_prompt
+      @settings = load_settings
+    end
+
+    # ---------- tasks -----------------------------------------------------
+
+    # With no argument: returns the full tasks hash from settings.yaml.
+    # With a name: returns that task's settings hash, e.g. tasks(:player).
+    def tasks(name = nil)
+      all = dig(:tasks) || {}
+      name ? (all[name.to_s] || all[name.to_sym]) : all
+    end
+
+    # The user's prompts directory for task prompt overrides.
+    def user_prompts_dir
+      File.join(@dir, "prompts")
     end
 
     # ---------- provider --------------------------------------------------
@@ -30,8 +51,14 @@ module Boukensha
 
     # ---------- system prompt ---------------------------------------------
 
-    def system_override?
-      dig(:system, :override) == true
+    # Delegates to the task, which decides between the user's task-scoped
+    # override (prompts/<task>/system.md) and the bundled default.
+    def system_prompt
+      Tasks::Player.system_prompt(
+        tasks(Tasks::Player.task_name),
+        user_prompts_dir:    user_prompts_dir,
+        default_prompts_dir: PROMPTS_DIR
+      )
     end
 
     # ---------- MUD connection --------------------------------------------
@@ -115,20 +142,6 @@ module Boukensha
       else
         {}
       end
-    end
-
-    # Resolves the system prompt. When the player task opts into a prompt
-    # override (tasks.player.prompt_override.system: true), the task-scoped
-    # file prompts/player/system.md wins; otherwise (and as a fallback) the
-    # flat prompts/system.md is used. Returns nil when neither exists.
-    def load_system_prompt
-      if dig(:tasks, :player, :prompt_override, :system) == true
-        task_file = File.join(@dir, "prompts", "player", "system.md")
-        return File.read(task_file).strip if File.exist?(task_file)
-      end
-
-      system_file = File.join(@dir, "prompts", "system.md")
-      File.exist?(system_file) ? File.read(system_file).strip : nil
     end
   end
 end

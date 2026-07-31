@@ -1,17 +1,20 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 #
-# Step 10 — A Standard Tool Library (MUD demo)
+# Step 12 — Context Management (one-shot MUD demo)
+#
+# The one-shot (Boukensha.run) demo; the interactive TUI is launched separately
+# via bin/boukensha. Provider, model, and system prompt all come from
+# tasks.player.* in ~/.boukensha/settings.yaml; the context window is looked up
+# from the model id (Boukensha::Models) and drives auto-compaction.
 #
 # Demonstrates Boukensha::Tools::Mud, which registers gameplay tools against
 # a live CircleMUD connection. Connection credentials come from
 # ~/.boukensha/settings.yaml (mud: host/port/username/password) by default.
 # Set BOUKENSHA_DIR to point at a different config directory.
 #
-# You can still override individual values as keyword arguments:
-#
-#   ruby examples/demo.rb
-#   BOUKENSHA_DIR=iterations/.boukensha ruby examples/demo.rb
+#   ruby examples/example.rb
+#   BOUKENSHA_DIR=iterations/.boukensha ruby examples/example.rb
 
 ENV["BOUKENSHA_DIR"] ||= File.expand_path("../../../../.boukensha", __dir__)
 

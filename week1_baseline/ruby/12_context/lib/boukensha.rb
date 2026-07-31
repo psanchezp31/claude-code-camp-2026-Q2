@@ -1,5 +1,6 @@
 require_relative "boukensha/version"
 require_relative "boukensha/config"
+require_relative "boukensha/tasks/player"
 
 module Boukensha
   @debug  = false
@@ -52,11 +53,14 @@ module Boukensha
     mud:              nil,
     &block
   )
-    cfg     = config                           # loads .env; populates ENV
-    system  ||= cfg.system_prompt
-    model   ||= cfg.model
+    cfg           = config                     # loads .env; populates ENV
+    task_class    = Tasks::Player
+    task_settings = cfg.tasks(task_class.task_name)
+    system      ||= task_class.system_prompt(task_settings, user_prompts_dir: cfg.user_prompts_dir, default_prompts_dir: Config::PROMPTS_DIR)
+    model       ||= task_class.model(task_settings)
+    backend     ||= task_class.provider(task_settings).to_sym
+    # The window is a model fact, looked up before any backend exists.
     context_window ||= Models.context_window(model)
-    backend ||= cfg.provider_type.to_sym
     api_key ||= case backend
                 when :anthropic    then ENV["ANTHROPIC_API_KEY"]
                 when :openai       then ENV["OPENAI_API_KEY"]
@@ -129,11 +133,14 @@ module Boukensha
     tui:              true,
     &block
   )
-    cfg     = config                           # loads .env; populates ENV
-    system  ||= cfg.system_prompt
-    model   ||= cfg.model
+    cfg           = config                     # loads .env; populates ENV
+    task_class    = Tasks::Player
+    task_settings = cfg.tasks(task_class.task_name)
+    system      ||= task_class.system_prompt(task_settings, user_prompts_dir: cfg.user_prompts_dir, default_prompts_dir: Config::PROMPTS_DIR)
+    model       ||= task_class.model(task_settings)
+    backend     ||= task_class.provider(task_settings).to_sym
+    # The window is a model fact, looked up before any backend exists.
     context_window ||= Models.context_window(model)
-    backend ||= cfg.provider_type.to_sym
     api_key ||= case backend
                 when :anthropic    then ENV["ANTHROPIC_API_KEY"]
                 when :openai       then ENV["OPENAI_API_KEY"]

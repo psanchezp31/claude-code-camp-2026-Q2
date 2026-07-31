@@ -13,6 +13,12 @@ module Boukensha
           cost_per_million: { input: 1.0, output: 5.0 },
           usage_unit: :tokens
         },
+        # the dated pin — same model, same behaviour as the alias above
+        "claude-haiku-4-5-20251001" => {
+          context_window: 200_000,
+          cost_per_million: { input: 1.0, output: 5.0 },
+          usage_unit: :tokens
+        },
         # supports adapative thinking and effort flag
         # non-adpative thinking is deprecated for sonnet 
         "claude-sonnet-4-6" => {
